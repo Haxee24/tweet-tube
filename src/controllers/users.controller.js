@@ -2,6 +2,7 @@ import {asyncHandler} from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import User from '../models/user.models.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
 
 const registerUser = asyncHandler(async (req, res, ) => {
     const {fullname, email, username, password} = req.body;
@@ -34,15 +35,24 @@ const registerUser = asyncHandler(async (req, res, ) => {
         throw ApiError(500, "Failed to upload profile picture");
     }
 
-    User.create({
+    const user = User.create({
         fullname,
         email,
         username: username.toLowerCase(),
         password,
         avatar: profilePhotoUrl,
         coverImage: coverPhotoUrl
-    })
+    });
 
+    const createdUser = await User.findById(user.__id).select(
+        "-password -refreshToken -updatedAt -__v"
+    );
+
+    if (!createdUser){
+        throw ApiError(500, "Something went wrong while creating user account");
+    }
+
+    return res.status(201).json(new ApiResponse(201, createdUser, "User account created successfully") );
 
 } );
 
