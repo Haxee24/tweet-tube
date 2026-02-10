@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/users.controller.js";
-import {upload} from '../middleware/multer.js';
+import { registerUser, showProfile } from "../controllers/users.controller.js";
+import upload from '../middleware/multer.js';
 
 const router = Router();
 
@@ -10,6 +10,8 @@ router.route("/register").post(
         {name: "coverPicture", maxCount: 1}
     ]),
     registerUser
-)
+);
+
+router.get("/profile", showProfile);
 
 export default router;
