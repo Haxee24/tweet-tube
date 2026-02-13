@@ -4,6 +4,20 @@ import User from '../models/user.models.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
+const generateAccessAndRefreshToken = async (user_id) => {
+    try{
+        const user = await User.findById(user_id).select("+refreshToken");
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+
+        await User.findByIdAndUpdate(user._id, {$set: {refreshToken}});
+
+        return {accessToken, refreshToken};
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating JWT tokens");
+    }
+}
+
 const registerUser = asyncHandler(async (req, res, ) => {
     const {fullname, email, username, password} = req.body;
     if ([fullname, email, username, password].some(field => field?.trim() === '')){
@@ -55,6 +69,49 @@ const registerUser = asyncHandler(async (req, res, ) => {
     return res.status(201).json(new ApiResponse(201, createdUser, "User account created successfully") );
 
 } );    
+
+const loginUser = asyncHandler( async (req, res) => {
+    const {username, email, password} = req.body;
+
+    if (!username && !email){
+        throw new ApiError(400, "username or email is required");
+    }
+
+    const user = User.findOne({
+        $or: [{email}, {username}]
+    });
+
+    if (!user){
+        throw new ApiError(401, "User not found");
+    };
+
+    const isPasswordValid = user.isPasswordValid(password);
+
+    if (!isPasswordValid){
+        throw new ApiError(401, "Incorrect Password");
+    };
+
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(new ApiResponse(
+        200,
+        {
+            user: loggedInUser, accessToken, refreshToken
+        },
+        "User logged in successfully"
+    ));
+
+} )
 
 
 const showProfile = async (req, res) => {
@@ -109,4 +166,4 @@ const showProfile = async (req, res) => {
   `);
 }
 
-export {registerUser, showProfile};
+export {registerUser, loginUser, showProfile};
