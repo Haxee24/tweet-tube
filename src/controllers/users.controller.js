@@ -111,7 +111,32 @@ const loginUser = asyncHandler( async (req, res) => {
         "User logged in successfully"
     ));
 
-} )
+} );
+
+const logoutUser = asyncHandler(async (req, res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+
+    );
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    };
+
+    return res.status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(
+        new ApiResponse(200, {}, "User logged out successfullt")
+    );
+
+});
 
 
 const showProfile = async (req, res) => {
